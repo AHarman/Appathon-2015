@@ -7,11 +7,13 @@ import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -41,8 +43,7 @@ public class MapsActivity extends FragmentActivity {
                 if(isBetterLocation(location, lastKnownLocation))
                 {
                     lastKnownLocation = location;
-                    currentLocationMarker.remove();
-                    addCircle(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+                    updateCurrentLocationMarker(new LatLng(location.getLatitude(), location.getLongitude()));
                 }
             }
 
@@ -88,8 +89,7 @@ public class MapsActivity extends FragmentActivity {
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
             // Try to obtain the map from the SupportMapFragment.
-            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
-                    .getMap();
+            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
                 setUpMap();
@@ -104,10 +104,45 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #mMap} is not null.
      */
     private void setUpMap() {
-        updateCurrentLocationMarker(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+        LatLng currentLatLng =  new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+        CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(0.5); // In meters
+        currentLocationMarker = mMap.addCircle(circleOptions);
+
+        double lat = lastKnownLocation.getLatitude();
+        double lng = lastKnownLocation.getLongitude();
+
+        LatLng topLeft  = new LatLng(lat - metresToLat(250), lng - metresToLng(250, lat));
+        LatLng botRight = new LatLng(lat + metresToLat(250), lng + metresToLng(250, lat));
+        final LatLngBounds bounds = new LatLngBounds(topLeft, botRight);
+
+
+
+        mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
+            @Override
+            public void onMapLoaded() {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 10), 2000, new GoogleMap.CancelableCallback() {
+                    @Override
+                    public void onFinish() {}
+                    @Override
+                    public void onCancel() {}
+                });
+            }
+        });
+    }
+
+    //Quick n dirty, assume 1 degree of lat = 111,111 metres, 1 degree lng = 111,111 * cos(latitude)
+    private double metresToLat(double metres)
+    {
+        return metres / 111111;
+    }
+
+    private double metresToLng(double metres, double lat)
+    {
+        return metres / (111111 * Math.cos(lat));
     }
 
     private void updateCurrentLocationMarker(LatLng latlng){
+        currentLocationMarker.remove();
         CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
     }
