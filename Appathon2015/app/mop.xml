@@ -1,0 +1,53 @@
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client</artifactId>
+  <version>1.19.0</version>
+  <exclusions>
+    <exclusion>
+      <artifactId>xpp3</artifactId>
+      <groupId>xpp3</groupId>
+    </exclusion>
+    <exclusion>
+      <artifactId>httpclient</artifactId>
+      <groupId>org.apache.httpcomponents</groupId>
+    </exclusion>
+    <exclusion>
+      <artifactId>junit</artifactId>
+      <groupId>junit</groupId>
+    </exclusion>
+    <exclusion>
+      <artifactId>android</artifactId>
+      <groupId>com.google.android</groupId>
+    </exclusion>
+  </exclusions>
+</dependency>
+
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client-android</artifactId>
+  <version>1.19.0</version>
+</dependency>
+
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client-gson</artifactId>
+  <version>1.19.0</version>
+</dependency>
+
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client-jackson2</artifactId>
+  <version>1.19.0</version>
+</dependency>
+
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client-jackson</artifactId>
+  <version>1.19.0</version>
+</dependency>
+
+<dependency>
+  <groupId>com.google.http-client</groupId>
+  <artifactId>google-http-client-protobuf</artifactId>
+  <version>1.19.0</version>
+</dependency>
