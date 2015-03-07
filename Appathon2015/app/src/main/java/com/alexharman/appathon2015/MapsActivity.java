@@ -14,8 +14,8 @@ import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity {
     private static final int ONE_MINUTE = 1000 * 60;
@@ -24,10 +24,13 @@ public class MapsActivity extends FragmentActivity {
     LocationListener locationListener;
     Location lastKnownLocation;
     Circle currentLocationMarker;
+    ArrayList<Spawn> spawnPoints;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        spawnPoints = new ArrayList<Spawn>(10);
 
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
@@ -74,11 +77,9 @@ public class MapsActivity extends FragmentActivity {
      * Sets up the map if it is possible to do so (i.e., the Google Play services APK is correctly
      * installed) and the map has not already been instantiated.. This will ensure that we only ever
      * call {@link #setUpMap()} once when {@link #mMap} is not null.
-     * <p/>
      * If it isn't installed {@link SupportMapFragment} (and
      * {@link com.google.android.gms.maps.MapView MapView}) will show a prompt for the user to
      * install/update the Google Play services APK on their device.
-     * <p/>
      * A user can return to this FragmentActivity after following the prompt and correctly
      * installing/updating/enabling the Google Play services. Since the FragmentActivity may not
      * have been completely destroyed during this process (it is likely that it would only be
@@ -104,27 +105,26 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #mMap} is not null.
      */
     private void setUpMap() {
+        mMap.getUiSettings().setAllGesturesEnabled(false);
+        
         LatLng currentLatLng =  new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
         CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(0.5); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
 
-        double lat = lastKnownLocation.getLatitude();
-        double lng = lastKnownLocation.getLongitude();
-
-        LatLng topLeft  = new LatLng(lat - metresToLat(250), lng - metresToLng(250, lat));
-        LatLng botRight = new LatLng(lat + metresToLat(250), lng + metresToLng(250, lat));
-        final LatLngBounds bounds = new LatLngBounds(topLeft, botRight);
-
-
+        final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 250);
 
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
             @Override
             public void onMapLoaded() {
                 mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 10), 2000, new GoogleMap.CancelableCallback() {
                     @Override
-                    public void onFinish() {}
+                    public void onFinish() {
+                        startGame();
+                    }
+
                     @Override
-                    public void onCancel() {}
+                    public void onCancel() {
+                    }
                 });
             }
         });
@@ -200,5 +200,25 @@ public class MapsActivity extends FragmentActivity {
             return provider2 == null;
         }
         return provider1.equals(provider2);
+    }
+
+    private void startGame()
+    {
+        LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+        LatLngBounds b = getArea(currentLatLng, 250);
+        Spawn s = new Spawn(b);
+        spawnPoints.add(s);
+    }
+
+    private LatLngBounds getArea(LatLng centre, double radius)
+    {
+        return getArea(centre, radius, radius);
+    }
+
+    private LatLngBounds getArea(LatLng centre, double boundsNS, double boundsEW)
+    {
+        LatLng topLeft  = new LatLng(centre.latitude - metresToLat(boundsNS), centre.longitude - metresToLng(boundsEW, centre.latitude));
+        LatLng botRight = new LatLng(centre.latitude + metresToLat(boundsNS), centre.longitude + metresToLng(boundsEW, centre.latitude));
+        return new LatLngBounds(topLeft, botRight);
     }
 }
