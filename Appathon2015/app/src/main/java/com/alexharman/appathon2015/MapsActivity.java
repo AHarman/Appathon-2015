@@ -4,8 +4,10 @@ import android.content.Context;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -14,7 +16,9 @@ import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.net.URL;
 import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity {
@@ -43,16 +47,20 @@ public class MapsActivity extends FragmentActivity {
         locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
-                if(isBetterLocation(location, lastKnownLocation))
-                {
+                if (isBetterLocation(location, lastKnownLocation)) {
                     lastKnownLocation = location;
                     updateCurrentLocationMarker(new LatLng(location.getLatitude(), location.getLongitude()));
                 }
             }
 
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
-            public void onProviderEnabled(String provider) {}
-            public void onProviderDisabled(String provider) {}
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
+
+            public void onProviderEnabled(String provider) {
+            }
+
+            public void onProviderDisabled(String provider) {
+            }
         };
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
@@ -68,7 +76,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     @Override
-    protected  void onPause() {
+    protected void onPause() {
         super.onPause();
         locationManager.removeUpdates(locationListener);
     }
@@ -106,12 +114,13 @@ public class MapsActivity extends FragmentActivity {
      */
     private void setUpMap() {
         mMap.getUiSettings().setAllGesturesEnabled(false);
-        
-        LatLng currentLatLng =  new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+
+        LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
         CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(0.5); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
 
         final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 250);
+        Log.w("bounds", "Bounds are " + bounds.toString());
 
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
             @Override
@@ -131,26 +140,26 @@ public class MapsActivity extends FragmentActivity {
     }
 
     //Quick n dirty, assume 1 degree of lat = 111,111 metres, 1 degree lng = 111,111 * cos(latitude)
-    private double metresToLat(double metres)
-    {
+    private double metresToLat(double metres) {
         return metres / 111111;
     }
 
-    private double metresToLng(double metres, double lat)
-    {
+    private double metresToLng(double metres, double lat) {
         return metres / (111111 * Math.cos(lat));
     }
 
-    private void updateCurrentLocationMarker(LatLng latlng){
+    private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
         CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
     }
 
 
-    /** Determines whether one Location reading is better than the current Location fix
-     * @param location  The new Location that you want to evaluate
-     * @param currentBestLocation  The current Location fix, to which you want to compare the new one
+    /**
+     * Determines whether one Location reading is better than the current Location fix
+     *
+     * @param location            The new Location that you want to evaluate
+     * @param currentBestLocation The current Location fix, to which you want to compare the new one
      */
     protected boolean isBetterLocation(Location location, Location currentBestLocation) {
         if (currentBestLocation == null) {
@@ -194,7 +203,9 @@ public class MapsActivity extends FragmentActivity {
         return false;
     }
 
-    /** Checks whether two providers are the same */
+    /**
+     * Checks whether two providers are the same
+     */
     private boolean isSameProvider(String provider1, String provider2) {
         if (provider1 == null) {
             return provider2 == null;
@@ -202,23 +213,38 @@ public class MapsActivity extends FragmentActivity {
         return provider1.equals(provider2);
     }
 
-    private void startGame()
-    {
+    private void startGame() {
+
+        createSpawn(70.0f, 200.0f);
+    }
+
+    private void createSpawn(double minRadius, double maxRadius) {
         LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        LatLngBounds b = getArea(currentLatLng, 250);
-        Spawn s = new Spawn(b);
+        LatLngBounds bInner = getArea(currentLatLng, minRadius);
+        LatLngBounds bOuter = getArea(currentLatLng, maxRadius);
+        Spawn s = new Spawn(bInner, bOuter);
+        mMap.addMarker(new MarkerOptions().position(s.getPosition()).title("Spawn point uno"));
         spawnPoints.add(s);
     }
 
-    private LatLngBounds getArea(LatLng centre, double radius)
-    {
+    private LatLngBounds getArea(LatLng centre, double radius) {
         return getArea(centre, radius, radius);
     }
 
-    private LatLngBounds getArea(LatLng centre, double boundsNS, double boundsEW)
-    {
-        LatLng topLeft  = new LatLng(centre.latitude - metresToLat(boundsNS), centre.longitude - metresToLng(boundsEW, centre.latitude));
-        LatLng botRight = new LatLng(centre.latitude + metresToLat(boundsNS), centre.longitude + metresToLng(boundsEW, centre.latitude));
-        return new LatLngBounds(topLeft, botRight);
+    private LatLngBounds getArea(LatLng centre, double boundsNS, double boundsEW) {
+        LatLng northEast = new LatLng(centre.latitude + metresToLat(boundsNS), centre.longitude + metresToLng(boundsEW, centre.latitude));
+        LatLng southWest = new LatLng(centre.latitude - metresToLat(boundsNS), centre.longitude - metresToLng(boundsEW, centre.latitude));
+        return new LatLngBounds(southWest, northEast);
+    }
+
+    private class DirectionsGetter extends AsyncTask<URL, Integer, String> {
+        private ArrayList<LatLng> points = new ArrayList<LatLng>();
+
+        @Override
+        protected String doInBackground(URL... params) {
+            return null;
+        }
     }
 }
+
+
