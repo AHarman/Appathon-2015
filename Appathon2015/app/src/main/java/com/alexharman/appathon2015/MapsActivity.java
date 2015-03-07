@@ -9,7 +9,10 @@ import android.os.Bundle;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 public class MapsActivity extends FragmentActivity {
@@ -18,6 +21,7 @@ public class MapsActivity extends FragmentActivity {
     LocationManager locationManager;
     LocationListener locationListener;
     Location lastKnownLocation;
+    Circle currentLocationMarker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +41,8 @@ public class MapsActivity extends FragmentActivity {
                 if(isBetterLocation(location, lastKnownLocation))
                 {
                     lastKnownLocation = location;
+                    currentLocationMarker.remove();
+                    addCircle(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
                 }
             }
 
@@ -59,6 +65,7 @@ public class MapsActivity extends FragmentActivity {
 
     @Override
     protected  void onPause() {
+        super.onPause();
         locationManager.removeUpdates(locationListener);
     }
 
@@ -97,7 +104,12 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #mMap} is not null.
      */
     private void setUpMap() {
-         mMap.addMarker(new MarkerOptions().position(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude())).title("HEREHEREHERE"));
+        updateCurrentLocationMarker(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+    }
+
+    private void updateCurrentLocationMarker(LatLng latlng){
+        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1); // In meters
+        currentLocationMarker = mMap.addCircle(circleOptions);
     }
 
 
