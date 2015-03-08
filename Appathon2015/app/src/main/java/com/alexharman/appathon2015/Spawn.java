@@ -1,10 +1,13 @@
 package com.alexharman.appathon2015;
 
+import android.location.Location;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Random;
 
 public class Spawn {
@@ -60,3 +63,4 @@ public class Spawn {
         return position;
     }
 }
+

@@ -17,32 +17,42 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.JsonObjectParser;
+import com.google.api.client.json.jackson.JacksonFactory;
+
 
 import java.net.URL;
 import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity {
     private static final int ONE_MINUTE = 1000 * 60;
+
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-    LocationManager locationManager;
-    LocationListener locationListener;
-    Location lastKnownLocation;
-    Circle currentLocationMarker;
-    ArrayList<Spawn> spawnPoints;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
+    private Location lastKnownLocation;
+    private Circle currentLocationMarker;
+
+    private ArrayList<Spawn> spawnPoints = new ArrayList<Spawn>(10);
+    private DirectionsGetter directionsGetter;
+    private static final HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
+    private static final JsonFactory jsonFactory = new JacksonFactory();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        spawnPoints = new ArrayList<Spawn>(10);
-
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-//        Location temp = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//        if (isBetterLocation(temp, lastKnownLocation))
-//        {
-//            lastKnownLocation = temp;
-//        }
 
         locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
@@ -148,6 +158,14 @@ public class MapsActivity extends FragmentActivity {
         return metres / (111111 * Math.cos(lat));
     }
 
+    private double latToMetres(double lat) {
+        return 111111 / lat;
+    }
+
+    private double lngToMetres(double lng, double lat) {
+        return (111111 * Math.cos(lat)) / lng;
+    }
+
     private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
         CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1); // In meters
@@ -224,6 +242,7 @@ public class MapsActivity extends FragmentActivity {
         LatLngBounds bOuter = getArea(currentLatLng, maxRadius);
         Spawn s = new Spawn(bInner, bOuter);
         mMap.addMarker(new MarkerOptions().position(s.getPosition()).title("Spawn point uno"));
+        new DirectionsGetter(createDirectionsURL(s.getPosition(), currentLatLng)).execute();
         spawnPoints.add(s);
     }
 
@@ -240,11 +259,48 @@ public class MapsActivity extends FragmentActivity {
     private class DirectionsGetter extends AsyncTask<URL, Integer, String> {
         private ArrayList<LatLng> points = new ArrayList<LatLng>();
 
+        GenericUrl url;
+
+        public DirectionsGetter(GenericUrl url) {
+            this.url = url;
+        }
+
+
         @Override
         protected String doInBackground(URL... params) {
+            HttpRequestFactory requestFactory = httpTransport.createRequestFactory(new HttpRequestInitializer() {
+                @Override
+                public void initialize(HttpRequest request) {
+                    request.setParser(new JsonObjectParser(jsonFactory));
+                }
+            });
+            try {
+                HttpRequest request = requestFactory.buildGetRequest(url);
+                HttpResponse httpResponse = request.execute();
+                Log.d("Test", "HEEEYEYYEYEYEYEY: " + httpResponse.toString());
+                //Log.d("Test", httpResponse.parseAs(ArrayList.class).toString());
+            } catch (Exception e) {
+                Log.e("HTTP", "Oh dear:\n" + e.toString());
+            }
+
+
+
             return null;
         }
     }
+
+    public GenericUrl createDirectionsURL(LatLng origin, LatLng destination) {
+        GenericUrl url = new GenericUrl("https://maps.googleapis.com/maps/api/directions/json");
+
+
+        url.put("origin", origin.latitude + "," + origin.longitude);
+        url.put("destination", destination.latitude + "," + destination.longitude);
+        url.put("travel_mode", "walking");
+        url.put("units", "metric");
+        url.put("key", "AIzaSyCd9eyMzbpfUqVMiYcl9TyKXhfdDulsBsU");
+
+        Log.e("URL", "That genericurl: " + url.toString());
+
+        return url;
+    }
 }
-
-
