@@ -5,9 +5,11 @@ import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Polyline;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class Spawn {
@@ -15,6 +17,8 @@ public class Spawn {
     private LatLng position;
     private int spawnrate;
     //private spawnType race;
+    private ArrayList<Polyline> lines = new ArrayList<Polyline>();
+    private ArrayList<LatLng> points = new ArrayList<LatLng>();
 
     // Create spawnpoint at a random point within an area
     Spawn(LatLngBounds bounds) {
