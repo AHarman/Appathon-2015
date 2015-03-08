@@ -66,6 +66,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     private boolean mapLoaded = false;
     private boolean gameStarted = false;
     private boolean gameOver = false;
+    private boolean spawning = false;
 
 
     @Override
@@ -293,7 +294,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     @Override
     public void onMapLongClick(LatLng latLng) {
         // It's pronounced tuh-ay
-        if (gameStarted && towers.size() < 5) {
+        if (gameStarted && towers.size() < 5 && computeDistanceBetween(latLng, spawnPoints.get(0).getPosition()) > 150
+                                             && computeDistanceBetween(latLng, currentLocationMarker.getCenter()) > 150) {
             PolygonOptions squareOptions = new PolygonOptions()
                     .add(computeOffset(latLng, 8, 45),
                             computeOffset(latLng, 8, 45 + 90),
@@ -307,6 +309,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
             Tower turret = new Tower(square, circle);
             towers.add(turret);
             precalcThing();
+        }
+        if(towers.size() == 5 && !spawning) {
+            startEnemies();
         }
     }
 
@@ -394,66 +399,69 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
             options.addAll(path);
             mMap.addPolyline(options);
-
-            final Handler h = new Handler();
-            h.postDelayed(new Runnable() {
-                private int index = 0;
-                private ArrayList<LatLng> thisPath = path;
-                private final CircleOptions template = new CircleOptions().fillColor(Color.GREEN).strokeColor(Color.GREEN).radius(1).zIndex(10).center(thisPath.get(0));
-                private ArrayList<Invader> enemyList = new ArrayList<Invader>();
-                private Invader currentEnemy;
-
-                private Invader[] enemy_lookup = new Invader[thisPath.size()];
-
-                @Override
-                public void run() {
-                    if (index % 20 == 0) {
-                        Circle temp = mMap.addCircle(template);
-                        Invader newEnemy = new Invader(temp, index);
-                        newEnemy.position = 0;
-                        enemy_lookup[0] = newEnemy;
-                        enemyList.add(newEnemy);
-                    }
-
-                    for (int i = 0; i < towers.size(); i++) {
-                        for (int j = 0; j < collisionMap[i].length; j++) {
-                            currentEnemy = enemy_lookup[collisionMap[i][j]];
-                            if (currentEnemy != null) {
-                                if (currentEnemy.takeDamage(1) <= 0) {
-                                    currentEnemy.getCircle().remove();
-                                    enemyList.remove(currentEnemy);
-                                    enemy_lookup[collisionMap[i][j]] = null;
-                                }
-                                //Break for j loop
-                                break;
-                            }
-                        }
-                    }
-
-
-                    for (int i = 0; i < enemyList.size(); i++) {
-                        currentEnemy = enemyList.get(i);
-                        if (index - currentEnemy.getId() == thisPath.size()) {
-                            gameOver = true;
-                        } else {
-                            currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
-                            enemy_lookup[currentEnemy.position] = null;
-                            currentEnemy.position++;
-                            enemy_lookup[currentEnemy.position] = currentEnemy;
-                        }
-                    }
-
-                    index++;
-                    if (!gameOver) {
-                        h.postDelayed(this, 200);
-                    }
-
-                }
-            }
-
-                    , 1000); // 1 second delay (takes millis)
         }
 
+    }
+
+    void startEnemies() {
+        spawning = true;
+        final Handler h = new Handler();
+        h.postDelayed(new Runnable() {
+            private int index = 0;
+            private ArrayList<LatLng> thisPath = paths.get(0);
+            private final CircleOptions template = new CircleOptions().fillColor(Color.GREEN).strokeColor(Color.GREEN).radius(1).zIndex(10).center(thisPath.get(0));
+            private ArrayList<Invader> enemyList = new ArrayList<Invader>();
+            private Invader currentEnemy;
+
+            private Invader[] enemy_lookup = new Invader[thisPath.size()];
+
+            @Override
+            public void run() {
+                if (index % 20 == 0) {
+                    Circle temp = mMap.addCircle(template);
+                    Invader newEnemy = new Invader(temp, index);
+                    newEnemy.position = 0;
+                    enemy_lookup[0] = newEnemy;
+                    enemyList.add(newEnemy);
+                }
+
+                for (int i = 0; i < towers.size(); i++) {
+                    for (int j = 0; j < collisionMap[i].length; j++) {
+                        currentEnemy = enemy_lookup[collisionMap[i][j]];
+                        if (currentEnemy != null) {
+                            if (currentEnemy.takeDamage(1) <= 0) {
+                                currentEnemy.getCircle().remove();
+                                enemyList.remove(currentEnemy);
+                                enemy_lookup[collisionMap[i][j]] = null;
+                            }
+                            //Break for j loop
+                            break;
+                        }
+                    }
+                }
+
+
+                for (int i = 0; i < enemyList.size(); i++) {
+                    currentEnemy = enemyList.get(i);
+                    if (index - currentEnemy.getId() == thisPath.size()) {
+                        gameOver = true;
+                    } else {
+                        currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
+                        enemy_lookup[currentEnemy.position] = null;
+                        currentEnemy.position++;
+                        enemy_lookup[currentEnemy.position] = currentEnemy;
+                    }
+                }
+
+                index++;
+                if (!gameOver) {
+                    h.postDelayed(this, 200);
+                }
+
+            }
+        }
+
+                , 1000); // 1 second delay (takes millis)
     }
 
     public GenericUrl createDirectionsURL(LatLng origin, LatLng destination) {
