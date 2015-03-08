@@ -267,7 +267,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
     private void startGame() {
         gameStarted = true;
-        createSpawn(300.0f, 250.0f);
+        createSpawn(400.0f, 300.0f, 550.0f, 350.0f);
     }
 
     private void createSpawn(double minRadius, double maxRadius) {
@@ -297,7 +297,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     public void onMapLongClick(LatLng latLng) {
         // It's pronounced tuh-ay
         if (gameStarted && towers.size() < 5 && computeDistanceBetween(latLng, spawnPoints.get(0).getPosition()) > 150
-                                             && computeDistanceBetween(latLng, currentLocationMarker.getCenter()) > 150) {
+                && computeDistanceBetween(latLng, currentLocationMarker.getCenter()) > 150) {
             PolygonOptions squareOptions = new PolygonOptions()
                     .add(computeOffset(latLng, 8, 45),
                             computeOffset(latLng, 8, 45 + 90),
@@ -312,7 +312,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
             towers.add(turret);
             precalcThing();
         }
-        if(towers.size() == 5 && !spawning) {
+        if (towers.size() == 5 && !spawning) {
             startEnemies();
         }
     }
@@ -325,7 +325,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
 
         for (int i = path.size() - 1; i >= 0; i--) {
-            if(computeDistanceBetween(center, path.get(i)) < TOWER_RADIUS) {
+            if (computeDistanceBetween(center, path.get(i)) < TOWER_RADIUS) {
                 ints.add(i);
             }
         }
@@ -431,6 +431,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                     for (int j = 0; j < collisionMap[i].length; j++) {
                         currentEnemy = enemy_lookup[collisionMap[i][j]];
                         if (currentEnemy != null) {
+                            currentEnemy.justGotHit = true;
                             if (currentEnemy.takeDamage(1) <= 0) {
                                 currentEnemy.getCircle().remove();
                                 enemyList.remove(currentEnemy);
@@ -452,6 +453,16 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                         enemy_lookup[currentEnemy.position] = null;
                         currentEnemy.position++;
                         enemy_lookup[currentEnemy.position] = currentEnemy;
+                        //Code duplication for performance
+                        if (currentEnemy.justGotHit) {
+
+                            currentEnemy.justGotHit = false;
+                            currentEnemy.getCircle().setFillColor(Color.YELLOW);
+                            currentEnemy.getCircle().setStrokeColor(Color.YELLOW);
+                        } else {
+                            currentEnemy.getCircle().setFillColor(Color.GREEN);
+                            currentEnemy.getCircle().setStrokeColor(Color.GREEN);
+                        }
                     }
                 }
 

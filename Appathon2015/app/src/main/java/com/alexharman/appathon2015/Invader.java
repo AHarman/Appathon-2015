@@ -3,11 +3,11 @@ package com.alexharman.appathon2015;
 import com.google.android.gms.maps.model.Circle;
 
 public class Invader {
-    private int health = 40;
+    private int health = 60;
     private Circle circle;
     private int id;
     public int position;
-    //boolean justGotHit = false;
+    boolean justGotHit = false;
 
     public Invader(Circle circle, int id) {
         this.circle = circle;
