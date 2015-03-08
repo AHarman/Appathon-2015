@@ -1,6 +1,7 @@
 package com.alexharman.appathon2015;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -8,6 +9,9 @@ import android.os.AsyncTask;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -51,13 +55,30 @@ public class MapsActivity extends FragmentActivity {
     private static final JsonFactory jsonFactory = new JacksonFactory();
     private ArrayList<ArrayList<LatLng>> paths = new ArrayList<ArrayList<LatLng>>();
 
+    Button lockButton;
+    private boolean mapLoaded = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        setContentView(R.layout.activity_maps);
+        lockButton = (Button) findViewById(R.id.lockButton);
+        lockButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (mapLoaded) {
+                    ViewGroup layout = (ViewGroup) lockButton.getParent();
+                    if (null != layout) {
+                        layout.removeView(lockButton);
+                        startGame();
+                    }
+                    centreOnPlayer();
+                }
+            }
+        });
+
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-
         locationListener = new LocationListener() {
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
@@ -78,8 +99,6 @@ public class MapsActivity extends FragmentActivity {
         };
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-
-        setContentView(R.layout.activity_maps);
         setUpMapIfNeeded();
     }
 
@@ -120,6 +139,22 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    private void centreOnPlayer() {
+        final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 250);
+        Log.w("bounds", "Bounds are " + bounds.toString());
+        if (mapLoaded) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 10), 2000, new GoogleMap.CancelableCallback() {
+                @Override
+                public void onFinish() {
+                }
+
+                @Override
+                public void onCancel() {
+                }
+            });
+        }
+    }
+
     /**
      * This is where we can add markers or lines, add listeners or move the camera. In this case, we
      * just add a marker near Africa.
@@ -130,25 +165,14 @@ public class MapsActivity extends FragmentActivity {
         mMap.getUiSettings().setAllGesturesEnabled(false);
 
         LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(0.5); // In meters
+        CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(1).fillColor(Color.RED).strokeColor(Color.RED); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
-
-        final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 250);
-        Log.w("bounds", "Bounds are " + bounds.toString());
 
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
             @Override
             public void onMapLoaded() {
-                mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 10), 2000, new GoogleMap.CancelableCallback() {
-                    @Override
-                    public void onFinish() {
-                        startGame();
-                    }
-
-                    @Override
-                    public void onCancel() {
-                    }
-                });
+                mapLoaded = true;
+                centreOnPlayer();
             }
         });
     }
@@ -172,7 +196,7 @@ public class MapsActivity extends FragmentActivity {
 
     private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
-        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1); // In meters
+        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1).fillColor(Color.RED).strokeColor(Color.RED);; // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
     }
 
@@ -236,7 +260,6 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void startGame() {
-
         createSpawn(70.0f, 200.0f);
     }
 
@@ -288,10 +311,10 @@ public class MapsActivity extends FragmentActivity {
                 Log.e("Test", "I TRY ALL THE TIME,");
                 // 10/10 would JSON again.
                 String polyline = new JSONObject(httpResponse.parseAsString())
-                                        .getJSONArray("routes")
-                                        .getJSONObject(0)
-                                        .getJSONObject("overview_polyline")
-                                        .getString("points");
+                        .getJSONArray("routes")
+                        .getJSONObject(0)
+                        .getJSONObject("overview_polyline")
+                        .getString("points");
                 Log.e("Test", "IN THIS INSTITUTION!" + polyline);
                 paths.add(new ArrayList<LatLng>(decode(polyline)));
 
