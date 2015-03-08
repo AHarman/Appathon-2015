@@ -36,6 +36,8 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.maps.android.PolyUtil;
+import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONObject;
 
@@ -47,6 +49,7 @@ import static com.google.maps.android.SphericalUtil.*;
 
 public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLongClickListener {
     private static final int ONE_MINUTE = 1000 * 60;
+    private static final double TOWER_RADIUS = 100.0f;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager locationManager;
@@ -63,7 +66,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
     Button lockButton;
     private boolean mapLoaded = false;
-    private boolean gameStarted;
+    private boolean gameStarted = false;
+    private boolean gameOver = false;
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
@@ -302,16 +306,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
         // It's pronounced tuh-ay
         if (gameStarted && towers.size() <= 5) {
             PolygonOptions squareOptions = new PolygonOptions()
-                                                    .add(computeOffset(latLng, 8, 45),
-                                                            computeOffset(latLng, 8, 45 + 90),
-                                                            computeOffset(latLng, 8, 45 + 180),
-                                                            computeOffset(latLng, 8, 45 + 270))
-                                                    .fillColor(Color.RED)
-                                                    .strokeColor(Color.RED);
+                    .add(computeOffset(latLng, 8, 45),
+                            computeOffset(latLng, 8, 45 + 90),
+                            computeOffset(latLng, 8, 45 + 180),
+                            computeOffset(latLng, 8, 45 + 270))
+                    .fillColor(Color.RED)
+                    .strokeColor(Color.RED);
             CircleOptions area = new CircleOptions().radius(100).fillColor(Color.argb(50, 150, 0, 0)).strokeWidth(0).center(latLng);
-            Polygon square =  mMap.addPolygon(squareOptions);
-            Circle circle =  mMap.addCircle(area);
+            Polygon square = mMap.addPolygon(squareOptions);
+            Circle circle = mMap.addCircle(area);
             Tower turret = new Tower(square, circle);
+            towers.add(turret);
         }
     }
 
@@ -390,22 +395,46 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                 private int index = 0;
                 private ArrayList<LatLng> thisPath = path;
                 private final CircleOptions template = new CircleOptions().fillColor(Color.GREEN).strokeColor(Color.GREEN).radius(1).zIndex(10).center(thisPath.get(0));
-                private ArrayList<Circle> enemyList = new ArrayList<Circle>();
+                private ArrayList<Invader> enemyList = new ArrayList<Invader>();
+                private Invader currentEnemy;
+                private Tower currentTower;
 
                 @Override
                 public void run() {
                     if (index % 20 == 0) {
                         Circle temp = mMap.addCircle(template);
-                        enemyList.add(temp);
+                        enemyList.add(new Invader(temp, index));
                     }
-                    //In reverse because lists
-                    for (int i = 0; i < enemyList.size(); i++) {
-                        enemyList.get(i).setCenter(thisPath.get(index - 20 * i));
+
+                    int j;
+                    boolean shot = false;
+                    for (int i = 0; i < towers.size(); i++) {
+                        currentTower = towers.get(i);
+                        j = 0;
+                        while (j < enemyList.size()) {
+                            currentEnemy = enemyList.get(j);
+                            if (!shot && SphericalUtil.computeDistanceBetween(currentEnemy.getCircle().getCenter(), currentTower.getRangeCircle().getCenter()) < TOWER_RADIUS) {
+                                shot = true;
+                                if (currentEnemy.takeDamage(1) == 0) {
+                                    currentEnemy.getCircle().remove();
+                                    enemyList.remove(i);
+                                }
+                            }
+                            if (index - currentEnemy.getId() == thisPath.size()) {
+                                gameOver = true;
+                            } else {
+                                currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
+                            }
+                            j++;
+                        }
                     }
+
                     index++;
-                    h.postDelayed(this, 300);
+                    if (!gameOver) {
+                        h.postDelayed(this, 200);
+                    }
                 }
-            }, 500); // 1 second delay (takes millis)
+            }, 1000); // 1 second delay (takes millis)
         }
     }
 
