@@ -56,6 +56,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     private ArrayList<ArrayList<LatLng>> paths = new ArrayList<ArrayList<LatLng>>();
     private ArrayList<Spawn> spawnPoints = new ArrayList<Spawn>();
     private ArrayList<Tower> towers = new ArrayList<Tower>(5);
+    private int[][] collisionMap = new int[5][];
 
     private static final HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
     private static final JsonFactory jsonFactory = new JacksonFactory();
@@ -150,7 +151,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     }
 
     private void centreOnPlayer() {
-        final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 250);
+        final LatLngBounds bounds = getArea(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 600, 400);
         Log.w("bounds", "Bounds are " + bounds.toString());
         if (mapLoaded) {
             mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 10), 2000, new GoogleMap.CancelableCallback() {
@@ -263,13 +264,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
     private void startGame() {
         gameStarted = true;
-        createSpawn(180.0f, 250.0f);
+        createSpawn(300.0f, 250.0f);
     }
 
     private void createSpawn(double minRadius, double maxRadius) {
+        createSpawn(minRadius, minRadius, maxRadius, maxRadius);
+    }
+
+    private void createSpawn(double minNS, double minEW, double maxNS, double maxEW) {
         LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        LatLngBounds bInner = getArea(currentLatLng, minRadius);
-        LatLngBounds bOuter = getArea(currentLatLng, maxRadius);
+        LatLngBounds bInner = getArea(currentLatLng, minNS, minEW);
+        LatLngBounds bOuter = getArea(currentLatLng, maxNS, maxEW);
         Spawn s = new Spawn(bInner, bOuter);
         new DirectionsGetter(createDirectionsURL(s.getPosition(), currentLatLng)).execute();
         spawnPoints.add(s);
@@ -288,7 +293,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     @Override
     public void onMapLongClick(LatLng latLng) {
         // It's pronounced tuh-ay
-        if (gameStarted && towers.size() <= 5) {
+        if (gameStarted && towers.size() < 5) {
             PolygonOptions squareOptions = new PolygonOptions()
                     .add(computeOffset(latLng, 8, 45),
                             computeOffset(latLng, 8, 45 + 90),
@@ -301,6 +306,25 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
             Circle circle = mMap.addCircle(area);
             Tower turret = new Tower(square, circle);
             towers.add(turret);
+            precalcThing();
+        }
+    }
+
+    private void precalcThing() {
+        int towerId = towers.size() - 1;
+        ArrayList<LatLng> path = paths.get(0);
+        ArrayList<Integer> ints = new ArrayList<Integer>();
+        LatLng center = towers.get(towerId).getRangeCircle().getCenter();
+
+
+        for (int i = path.size() - 1; i >= 0; i--) {
+            if(computeDistanceBetween(center, path.get(i)) < TOWER_RADIUS) {
+                ints.add(i);
+            }
+        }
+        collisionMap[towerId] = new int[ints.size()];
+        for (int i = 0; i < ints.size(); i++) {
+            collisionMap[towerId][i] = ints.get(i);
         }
     }
 
@@ -378,43 +402,49 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                 private final CircleOptions template = new CircleOptions().fillColor(Color.GREEN).strokeColor(Color.GREEN).radius(1).zIndex(10).center(thisPath.get(0));
                 private ArrayList<Invader> enemyList = new ArrayList<Invader>();
                 private Invader currentEnemy;
-                private Tower currentTower;
+
+                private Invader[] enemy_lookup = new Invader[thisPath.size()];
 
                 @Override
                 public void run() {
                     if (index % 20 == 0) {
                         Circle temp = mMap.addCircle(template);
-                        enemyList.add(new Invader(temp, index));
+                        Invader newEnemy = new Invader(temp, index);
+                        newEnemy.position = 0;
+                        enemy_lookup[0] = newEnemy;
+                        enemyList.add(newEnemy);
                     }
 
-                    int j;
-                    boolean shot = false;
                     for (int i = 0; i < towers.size(); i++) {
-                        currentTower = towers.get(i);
-                        j = 0;
-                        while (j < enemyList.size()) {
-                            currentEnemy = enemyList.get(j);
-                            if (!shot && SphericalUtil.computeDistanceBetween(currentEnemy.getCircle().getCenter(), currentTower.getRangeCircle().getCenter()) < TOWER_RADIUS) {
-                                shot = true;
-                                if (currentEnemy.takeDamage(1) == 0) {
+                        for (int j = 0; j < collisionMap[i].length; j++) {
+                            currentEnemy = enemy_lookup[collisionMap[i][j]];
+                            if (currentEnemy != null) {
+                                if (currentEnemy.takeDamage(1) <= 0) {
                                     currentEnemy.getCircle().remove();
-                                    enemyList.remove(i);
+                                    enemyList.remove(currentEnemy);
+                                    enemy_lookup[collisionMap[i][j]] = null;
                                 }
+                                //Break for j loop
+                                break;
                             }
-                            j++;
                         }
                     }
+
+
                     for (int i = 0; i < enemyList.size(); i++) {
-                        if (index - enemyList.get(i).getId() == thisPath.size()) {
+                        currentEnemy = enemyList.get(i);
+                        if (index - currentEnemy.getId() == thisPath.size()) {
                             gameOver = true;
                         } else {
-                            enemyList.get(i).getCircle().setCenter(thisPath.get(index - enemyList.get(i).getId()));
+                            currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
+                            enemy_lookup[currentEnemy.position] = null;
+                            currentEnemy.position++;
+                            enemy_lookup[currentEnemy.position] = currentEnemy;
                         }
                     }
 
                     index++;
-                    if (!gameOver)
-                    {
+                    if (!gameOver) {
                         h.postDelayed(this, 200);
                     }
 
