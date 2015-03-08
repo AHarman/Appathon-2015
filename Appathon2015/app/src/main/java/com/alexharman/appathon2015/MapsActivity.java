@@ -37,10 +37,12 @@ import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.maps.android.SphericalUtil;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Random;
 
 import static com.google.maps.android.PolyUtil.*;
 import static com.google.maps.android.SphericalUtil.*;
@@ -359,11 +361,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                 //Log.e("Test", "OMG DON'T I TRY! " + httpResponse.parseAsString());
                 Log.e("Test", "I TRY ALL THE TIME,");
                 // 10/10 would JSON again.
-                String polyline = new JSONObject(httpResponse.parseAsString())
-                        .getJSONArray("routes")
-                        .getJSONObject(0)
-                        .getJSONObject("overview_polyline")
-                        .getString("points");
+                JSONArray routes = new JSONObject(httpResponse.parseAsString()).getJSONArray("routes");
+                Random rand = new Random();
+                int route = rand.nextInt() % routes.length();
+                Log.e("Route","Rand: " + route + " Routes: " + routes.length());
+                String polyline = routes.getJSONObject(route)
+                                        .getJSONObject("overview_polyline")
+                                        .getString("points");
                 Log.e("Test", "IN THIS INSTITUTION!" + polyline);
 
                 //Interpolate lines
@@ -484,8 +488,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
         url.put("destination", destination.latitude + "," + destination.longitude);
         url.put("mode", "walking");
         url.put("units", "metric");
-        //This breaks it despite being a "required" parameter.
-        //url.put("key", "AIzaSyCd9eyMzbpfUqVMiYcl9TyKXhfdDulsBsU");
+        url.put("alternatives", "true");
 
         Log.e("URL", "That genericurl: " + url.toString());
 
