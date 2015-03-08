@@ -37,9 +37,9 @@ import org.json.JSONObject;
 
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.List;
 
 import static com.google.maps.android.PolyUtil.*;
+import static com.google.maps.android.SphericalUtil.*;
 
 public class MapsActivity extends FragmentActivity {
     private static final int ONE_MINUTE = 1000 * 60;
@@ -316,7 +316,24 @@ public class MapsActivity extends FragmentActivity {
                         .getJSONObject("overview_polyline")
                         .getString("points");
                 Log.e("Test", "IN THIS INSTITUTION!" + polyline);
-                paths.add(new ArrayList<LatLng>(decode(polyline)));
+
+                //Interpolate lines
+                ArrayList<LatLng> path = (ArrayList<LatLng>) decode(polyline);
+                ArrayList<LatLng> interpolatedPath = new ArrayList<LatLng>();
+                for (int j = 0; j < path.size() - 1; j++) {
+                    LatLng p0 = path.get(j);
+                    LatLng p1 = path.get(j + 1);
+                    interpolatedPath.add(p0);
+
+                    double distance = computeDistanceBetween(p0, p1);
+                    double heading = computeHeading(p0, p1);
+                    for (double i = 2.0f; i <= distance - 2.0f; i += 2.0f) {
+                        p0 = computeOffset(p0, 2, heading);
+                        interpolatedPath.add(p0);
+                    }
+                }
+                interpolatedPath.add(path.get(path.size() - 1));
+                paths.add(interpolatedPath);
 
             } catch (Exception e) {
                 Log.e("HTTP", "Myaah!: " + e.toString());
