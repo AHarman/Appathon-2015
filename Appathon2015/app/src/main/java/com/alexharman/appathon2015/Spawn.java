@@ -20,6 +20,10 @@ public class Spawn {
     private ArrayList<Polyline> lines = new ArrayList<Polyline>();
     private ArrayList<LatLng> points = new ArrayList<LatLng>();
 
+    public void setPosition(LatLng position) {
+        this.position = position;
+    }
+
     // Create spawnpoint at a random point within an area
     Spawn(LatLngBounds bounds) {
         Random rand = new Random();

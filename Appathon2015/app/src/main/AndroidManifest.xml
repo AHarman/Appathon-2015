@@ -29,6 +29,7 @@
             android:value="AIzaSyCd9eyMzbpfUqVMiYcl9TyKXhfdDulsBsU" />
 
         <activity
+            android:screenOrientation="portrait"
             android:name=".MapsActivity"
             android:label="@string/title_activity_maps" >
             <intent-filter>

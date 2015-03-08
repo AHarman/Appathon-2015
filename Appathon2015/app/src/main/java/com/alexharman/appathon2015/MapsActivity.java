@@ -196,7 +196,8 @@ public class MapsActivity extends FragmentActivity {
 
     private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
-        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1).fillColor(Color.RED).strokeColor(Color.RED);; // In meters
+        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1).fillColor(Color.RED).strokeColor(Color.RED);
+        ; // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
     }
 
@@ -268,7 +269,6 @@ public class MapsActivity extends FragmentActivity {
         LatLngBounds bInner = getArea(currentLatLng, minRadius);
         LatLngBounds bOuter = getArea(currentLatLng, maxRadius);
         Spawn s = new Spawn(bInner, bOuter);
-        mMap.addMarker(new MarkerOptions().position(s.getPosition()).title("Spawn point uno"));
         new DirectionsGetter(createDirectionsURL(s.getPosition(), currentLatLng)).execute();
         spawnPoints.add(s);
     }
@@ -326,8 +326,12 @@ public class MapsActivity extends FragmentActivity {
         }
 
         protected void onPostExecute(Void result) {
-            PolylineOptions options = new PolylineOptions();
             ArrayList<LatLng> path = paths.get(paths.size() - 1);
+            Spawn s = spawnPoints.get(spawnPoints.size() - 1);
+            s.setPosition(path.get(0));
+            mMap.addMarker(new MarkerOptions().position(s.getPosition()).title("Spawn point"));
+
+            PolylineOptions options = new PolylineOptions().color(Color.argb(150, 0, 0, 0));
             options.addAll(path);
             mMap.addPolyline(options);
         }
