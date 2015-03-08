@@ -9,9 +9,7 @@ import android.os.AsyncTask;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.support.v4.view.MotionEventCompat;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -36,7 +34,6 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson.JacksonFactory;
-import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONObject;
@@ -69,11 +66,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     private boolean gameStarted = false;
     private boolean gameOver = false;
 
-    @Override
-    public boolean onTouchEvent(MotionEvent e) {
-        int action = MotionEventCompat.getActionMasked(e);
-        return true;
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -204,14 +196,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
         return metres / (111111 * Math.cos(lat));
     }
 
-    private double latToMetres(double lat) {
-        return 111111 / lat;
-    }
-
-    private double lngToMetres(double lng, double lat) {
-        return (111111 * Math.cos(lat)) / lng;
-    }
-
     private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
         CircleOptions circleOptions = new CircleOptions().center(latlng).radius(3).fillColor(Color.RED).strokeColor(Color.RED).zIndex(15);
@@ -321,14 +305,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     }
 
     private class DirectionsGetter extends AsyncTask<URL, Integer, Void> {
-        private ArrayList<LatLng> points = new ArrayList<LatLng>();
-
         GenericUrl url;
 
         public DirectionsGetter(GenericUrl url) {
             this.url = url;
         }
-
 
         @Override
         protected Void doInBackground(URL... params) {
@@ -420,22 +401,29 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                                     enemyList.remove(i);
                                 }
                             }
-                            if (index - currentEnemy.getId() == thisPath.size()) {
-                                gameOver = true;
-                            } else {
-                                currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
-                            }
                             j++;
+                        }
+                    }
+                    for (int i = 0; i < enemyList.size(); i++) {
+                        if (index - enemyList.get(i).getId() == thisPath.size()) {
+                            gameOver = true;
+                        } else {
+                            enemyList.get(i).getCircle().setCenter(thisPath.get(index - enemyList.get(i).getId()));
                         }
                     }
 
                     index++;
-                    if (!gameOver) {
+                    if (!gameOver)
+                    {
                         h.postDelayed(this, 200);
                     }
+
                 }
-            }, 1000); // 1 second delay (takes millis)
+            }
+
+                    , 1000); // 1 second delay (takes millis)
         }
+
     }
 
     public GenericUrl createDirectionsURL(LatLng origin, LatLng destination) {
