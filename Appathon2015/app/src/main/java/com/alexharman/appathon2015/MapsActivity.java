@@ -364,10 +364,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                 JSONArray routes = new JSONObject(httpResponse.parseAsString()).getJSONArray("routes");
                 Random rand = new Random();
                 int route = rand.nextInt() % routes.length();
-                Log.e("Route","Rand: " + route + " Routes: " + routes.length());
+                Log.e("Route", "Rand: " + route + " Routes: " + routes.length());
                 String polyline = routes.getJSONObject(route)
-                                        .getJSONObject("overview_polyline")
-                                        .getString("points");
+                        .getJSONObject("overview_polyline")
+                        .getString("points");
                 Log.e("Test", "IN THIS INSTITUTION!" + polyline);
 
                 //Interpolate lines
@@ -450,24 +450,28 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
 
                 for (int i = 0; i < enemyList.size(); i++) {
                     currentEnemy = enemyList.get(i);
-                    if (index - currentEnemy.getId() == thisPath.size()) {
-                        gameOver = true;
-                    } else {
-                        currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
-                        enemy_lookup[currentEnemy.position] = null;
-                        currentEnemy.position++;
-                        enemy_lookup[currentEnemy.position] = currentEnemy;
-                        //Code duplication for performance
-                        if (currentEnemy.justGotHit) {
 
-                            currentEnemy.justGotHit = false;
-                            currentEnemy.getCircle().setFillColor(Color.YELLOW);
-                            currentEnemy.getCircle().setStrokeColor(Color.YELLOW);
-                        } else {
-                            currentEnemy.getCircle().setFillColor(Color.GREEN);
-                            currentEnemy.getCircle().setStrokeColor(Color.GREEN);
-                        }
+
+                    //This can be simplified
+                    currentEnemy.getCircle().setCenter(thisPath.get(index - currentEnemy.getId()));
+                    enemy_lookup[currentEnemy.position] = null;
+                    currentEnemy.position++;
+                    if (currentEnemy.position == thisPath.size() - 1) {
+                        gameOver = true;
+                        break;
                     }
+                    enemy_lookup[currentEnemy.position] = currentEnemy;
+                    //Code duplication for performance
+                    if (currentEnemy.justGotHit) {
+
+                        currentEnemy.justGotHit = false;
+                        currentEnemy.getCircle().setFillColor(Color.YELLOW);
+                        currentEnemy.getCircle().setStrokeColor(Color.YELLOW);
+                    } else {
+                        currentEnemy.getCircle().setFillColor(Color.GREEN);
+                        currentEnemy.getCircle().setStrokeColor(Color.GREEN);
+                    }
+
                 }
 
                 index++;
@@ -476,9 +480,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
                 }
 
             }
-        }
-
-                , 1000); // 1 second delay (takes millis)
+        }, 1000); // 1 second delay (takes millis)
     }
 
     public GenericUrl createDirectionsURL(LatLng origin, LatLng destination) {
