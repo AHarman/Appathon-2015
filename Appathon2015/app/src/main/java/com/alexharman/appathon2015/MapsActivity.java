@@ -6,9 +6,12 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.view.MotionEventCompat;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -20,7 +23,8 @@ import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polygon;
+import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.http.GenericUrl;
@@ -41,7 +45,7 @@ import java.util.ArrayList;
 import static com.google.maps.android.PolyUtil.*;
 import static com.google.maps.android.SphericalUtil.*;
 
-public class MapsActivity extends FragmentActivity {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLongClickListener {
     private static final int ONE_MINUTE = 1000 * 60;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
@@ -49,19 +53,27 @@ public class MapsActivity extends FragmentActivity {
     private LocationListener locationListener;
     private Location lastKnownLocation;
     private Circle currentLocationMarker;
-
+    private ArrayList<ArrayList<LatLng>> paths = new ArrayList<ArrayList<LatLng>>();
     private ArrayList<Spawn> spawnPoints = new ArrayList<Spawn>();
+    private ArrayList<Tower> towers = new ArrayList<Tower>(5);
+
     private static final HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
     private static final JsonFactory jsonFactory = new JacksonFactory();
-    private ArrayList<ArrayList<LatLng>> paths = new ArrayList<ArrayList<LatLng>>();
+
 
     Button lockButton;
     private boolean mapLoaded = false;
+    private boolean gameStarted;
+
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        int action = MotionEventCompat.getActionMasked(e);
+        return true;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_maps);
         lockButton = (Button) findViewById(R.id.lockButton);
         lockButton.setOnClickListener(new View.OnClickListener() {
@@ -73,6 +85,7 @@ public class MapsActivity extends FragmentActivity {
                         startGame();
                     }
                     centreOnPlayer();
+                    locationManager.removeUpdates(locationListener);
                 }
             }
         });
@@ -100,6 +113,7 @@ public class MapsActivity extends FragmentActivity {
 
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
         setUpMapIfNeeded();
+        mMap.setOnMapLongClickListener(this);
     }
 
     @Override
@@ -165,7 +179,7 @@ public class MapsActivity extends FragmentActivity {
         mMap.getUiSettings().setAllGesturesEnabled(false);
 
         LatLng currentLatLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(1).fillColor(Color.RED).strokeColor(Color.RED); // In meters
+        CircleOptions circleOptions = new CircleOptions().center(currentLatLng).radius(3).fillColor(Color.RED).strokeColor(Color.RED).zIndex(15); // In meters
         currentLocationMarker = mMap.addCircle(circleOptions);
 
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
@@ -196,8 +210,7 @@ public class MapsActivity extends FragmentActivity {
 
     private void updateCurrentLocationMarker(LatLng latlng) {
         currentLocationMarker.remove();
-        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(1).fillColor(Color.RED).strokeColor(Color.RED);
-        ; // In meters
+        CircleOptions circleOptions = new CircleOptions().center(latlng).radius(3).fillColor(Color.RED).strokeColor(Color.RED).zIndex(15);
         currentLocationMarker = mMap.addCircle(circleOptions);
     }
 
@@ -261,7 +274,8 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void startGame() {
-        createSpawn(70.0f, 200.0f);
+        gameStarted = true;
+        createSpawn(180.0f, 250.0f);
     }
 
     private void createSpawn(double minRadius, double maxRadius) {
@@ -281,6 +295,24 @@ public class MapsActivity extends FragmentActivity {
         LatLng northEast = new LatLng(centre.latitude + metresToLat(boundsNS), centre.longitude + metresToLng(boundsEW, centre.latitude));
         LatLng southWest = new LatLng(centre.latitude - metresToLat(boundsNS), centre.longitude - metresToLng(boundsEW, centre.latitude));
         return new LatLngBounds(southWest, northEast);
+    }
+
+    @Override
+    public void onMapLongClick(LatLng latLng) {
+        // It's pronounced tuh-ay
+        if (gameStarted && towers.size() <= 5) {
+            PolygonOptions squareOptions = new PolygonOptions()
+                                                    .add(computeOffset(latLng, 8, 45),
+                                                            computeOffset(latLng, 8, 45 + 90),
+                                                            computeOffset(latLng, 8, 45 + 180),
+                                                            computeOffset(latLng, 8, 45 + 270))
+                                                    .fillColor(Color.RED)
+                                                    .strokeColor(Color.RED);
+            CircleOptions area = new CircleOptions().radius(100).fillColor(Color.argb(50, 150, 0, 0)).strokeWidth(0).center(latLng);
+            Polygon square =  mMap.addPolygon(squareOptions);
+            Circle circle =  mMap.addCircle(area);
+            Tower turret = new Tower(square, circle);
+        }
     }
 
     private class DirectionsGetter extends AsyncTask<URL, Integer, Void> {
@@ -343,14 +375,37 @@ public class MapsActivity extends FragmentActivity {
         }
 
         protected void onPostExecute(Void result) {
-            ArrayList<LatLng> path = paths.get(paths.size() - 1);
+            final ArrayList<LatLng> path = paths.get(paths.size() - 1);
             Spawn s = spawnPoints.get(spawnPoints.size() - 1);
             s.setPosition(path.get(0));
-            mMap.addMarker(new MarkerOptions().position(s.getPosition()).title("Spawn point"));
+            mMap.addCircle(new CircleOptions().center(s.getPosition()).radius(3).strokeColor(Color.BLACK).fillColor(Color.BLACK));
 
-            PolylineOptions options = new PolylineOptions().color(Color.argb(150, 0, 0, 0));
+            PolylineOptions options = new PolylineOptions().color(Color.argb(150, 0, 0, 0)).zIndex(5);
+
             options.addAll(path);
             mMap.addPolyline(options);
+
+            final Handler h = new Handler();
+            h.postDelayed(new Runnable() {
+                private int index = 0;
+                private ArrayList<LatLng> thisPath = path;
+                private final CircleOptions template = new CircleOptions().fillColor(Color.GREEN).strokeColor(Color.GREEN).radius(1).zIndex(10).center(thisPath.get(0));
+                private ArrayList<Circle> enemyList = new ArrayList<Circle>();
+
+                @Override
+                public void run() {
+                    if (index % 20 == 0) {
+                        Circle temp = mMap.addCircle(template);
+                        enemyList.add(temp);
+                    }
+                    //In reverse because lists
+                    for (int i = 0; i < enemyList.size(); i++) {
+                        enemyList.get(i).setCenter(thisPath.get(index - 20 * i));
+                    }
+                    index++;
+                    h.postDelayed(this, 300);
+                }
+            }, 500); // 1 second delay (takes millis)
         }
     }
 

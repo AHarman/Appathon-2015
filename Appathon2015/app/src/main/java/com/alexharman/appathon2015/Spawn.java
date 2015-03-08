@@ -1,6 +1,7 @@
 package com.alexharman.appathon2015;
 
 import android.location.Location;
+import android.os.Handler;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -65,6 +66,24 @@ public class Spawn {
     Spawn(LatLng position) {
         this.position = position;
         return;
+    }
+
+    public void startSpawning()
+    {
+        final Handler h = new Handler();
+        h.postDelayed(new Runnable()
+        {
+            private int index = 0;
+
+            @Override
+            public void run()
+            {
+
+                index++;
+                h.postDelayed(this, 500);
+            }
+        }, 500); // 1 second delay (takes millis)
+
     }
 
     public LatLng getPosition() {
