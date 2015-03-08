@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -72,6 +73,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_maps);
         lockButton = (Button) findViewById(R.id.lockButton);
         lockButton.setOnClickListener(new View.OnClickListener() {
@@ -395,10 +397,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMapLon
             s.setPosition(path.get(0));
             mMap.addCircle(new CircleOptions().center(s.getPosition()).radius(3).strokeColor(Color.BLACK).fillColor(Color.BLACK));
 
-            PolylineOptions options = new PolylineOptions().color(Color.argb(150, 0, 0, 0)).zIndex(5);
+            //PolylineOptions options = new PolylineOptions().color(Color.argb(150, 0, 0, 0)).zIndex(5);
 
-            options.addAll(path);
-            mMap.addPolyline(options);
+            //options.addAll(path);
+            //mMap.addPolyline(options);
         }
 
     }
