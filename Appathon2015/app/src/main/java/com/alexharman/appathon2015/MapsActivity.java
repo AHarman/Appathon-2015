@@ -17,6 +17,7 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
@@ -28,13 +29,13 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson.JacksonFactory;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
 
-import static com.google.maps.android.SphericalUtil.*;
+import static com.google.maps.android.PolyUtil.*;
 
 public class MapsActivity extends FragmentActivity {
     private static final int ONE_MINUTE = 1000 * 60;
@@ -46,9 +47,9 @@ public class MapsActivity extends FragmentActivity {
     private Circle currentLocationMarker;
 
     private ArrayList<Spawn> spawnPoints = new ArrayList<Spawn>();
-    private ArrayList<LatLng> latLngs = new ArrayList<LatLng>();
     private static final HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
     private static final JsonFactory jsonFactory = new JacksonFactory();
+    private ArrayList<ArrayList<LatLng>> paths = new ArrayList<ArrayList<LatLng>>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -259,7 +260,7 @@ public class MapsActivity extends FragmentActivity {
         return new LatLngBounds(southWest, northEast);
     }
 
-    private class DirectionsGetter extends AsyncTask<URL, Integer, String> {
+    private class DirectionsGetter extends AsyncTask<URL, Integer, Void> {
         private ArrayList<LatLng> points = new ArrayList<LatLng>();
 
         GenericUrl url;
@@ -270,7 +271,7 @@ public class MapsActivity extends FragmentActivity {
 
 
         @Override
-        protected String doInBackground(URL... params) {
+        protected Void doInBackground(URL... params) {
             HttpRequestFactory requestFactory = httpTransport.createRequestFactory(new HttpRequestInitializer() {
                 @Override
                 public void initialize(HttpRequest request) {
@@ -292,55 +293,7 @@ public class MapsActivity extends FragmentActivity {
                                         .getJSONObject("overview_polyline")
                                         .getString("points");
                 Log.e("Test", "IN THIS INSTITUTION!" + polyline);
-
-                // Get individual steps
-                /*JSONObject jsonObject = new JSONObject(httpResponse.parseAsString());
-                if (!jsonObject.getString("status").equals("OK"))
-                    throw new Exception("Directions Failed.");
-
-                JSONArray jsonArray = jsonObject.getJSONArray("routes");
-                // is this correct?
-                jsonObject = jsonArray.getJSONObject(0);
-                jsonArray = jsonObject.getJSONArray("legs");
-                // is this correct?
-                jsonObject = jsonArray.getJSONObject(0);
-                ArrayList<LatLng> polyLine = new ArrayList<LatLng>();
-                jsonArray = jsonObject.getJSONArray("steps");
-
-                jsonObject = jsonArray.getJSONObject(0);
-                JSONObject origin = jsonObject.getJSONObject("start_location");
-                LatLng firstPoint = new LatLng(Double.parseDouble(origin.getString("lat")), Double.parseDouble(origin.getString("lng")));
-                JSONObject destination = jsonObject.getJSONObject("end_location");
-                LatLng lastPoint = new LatLng(Double.parseDouble(destination.getString("lat")), Double.parseDouble(destination.getString("lng")));
-                double heading = computeHeading(firstPoint, lastPoint);
-                // Could replace with Double.parseDouble(jsonObject.getJSONObject("distance").getString("value"));
-                double distance = computeDistanceBetween(firstPoint, lastPoint);
-
-                polyLine.add(firstPoint);
-                for (int i = 1; i <= distance; ++i) {
-                    polyLine.add(computeOffset(firstPoint, i, heading));
-                }
-                polyLine.add(lastPoint);
-
-                int l = jsonArray.length();
-                for (int i = 1, p = 1; i < l; ++i) {
-                    jsonObject = jsonArray.getJSONObject(i);
-                    origin = jsonObject.getJSONObject("start_location");
-                    firstPoint = new LatLng(Double.parseDouble(origin.getString("lat")), Double.parseDouble(origin.getString("lng")));
-                    destination = jsonObject.getJSONObject("end_location");
-                    lastPoint = new LatLng(Double.parseDouble(destination.getString("lat")), Double.parseDouble(destination.getString("lng")));
-                    heading = computeHeading(firstPoint, lastPoint);
-                    distance = computeDistanceBetween(firstPoint, lastPoint);
-
-                    polyLine.add(firstPoint);
-                    for (; p <= distance; ++p) {
-                        polyLine.add(computeOffset(firstPoint, p, heading));
-                    }
-                    p = 1;
-                    polyLine.add(lastPoint);
-                }
-                Log.e("Test", "AND HE PRAYS!" + polyLine.toString());*/
-
+                paths.add(new ArrayList<LatLng>(decode(polyline)));
 
             } catch (Exception e) {
                 Log.e("HTTP", "Myaah!: " + e.toString());
@@ -350,10 +303,10 @@ public class MapsActivity extends FragmentActivity {
         }
 
         protected void onPostExecute(Void result) {
-            /*addPolylineToMap(latLngs);
-            GoogleMapUtis.fixZoomForLatLngs(googleMap, latLngs);
-            getActivity().setProgressBarIndeterminateVisibility(Boolean.FALSE);*/
-            //mMap.add
+            PolylineOptions options = new PolylineOptions();
+            ArrayList<LatLng> path = paths.get(paths.size() - 1);
+            options.addAll(path);
+            mMap.addPolyline(options);
         }
     }
 
